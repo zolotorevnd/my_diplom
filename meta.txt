@@ -1,0 +1,9 @@
+#cloud-config
+users:
+ - name: zolotorev
+   groups: sudo
+   shell: /bin/bash
+   sudo: 'ALL=(ALL) NOPASSWD:ALL'
+   ssh-authorized-keys:
+     - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIB2Ktmo3fqouJ9v2QxJqNDekj6YM4yUUAxXiZBWoqqwc zolotorev@zolotorev
+

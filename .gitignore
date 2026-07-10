@@ -1,0 +1,24 @@
+# Terraform
+*.tfvars
+*.tfvars.json
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+terraform.tfstate.backup
+
+# SSH-ключи и сервисные аккаунты
+*.pem
+*.key
+*.json
+!terraform.tfvars.example
+
+# Логи и временные файлы
+*.log
+*.tmp
+*.swp
+.DS_Store
+
+# Ansible
+*.retry
+.ansible/
