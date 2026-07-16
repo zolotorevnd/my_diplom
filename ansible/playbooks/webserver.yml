@@ -1,0 +1,55 @@
+
+- name: Install Nginx
+  hosts: webservers
+  become: yes
+
+  tasks:
+    - name: Update cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Installnginx
+      apt:
+        name: nginx
+        state: present
+
+    - name: Create directory
+      file:
+        path: /var/www/mysite
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    - name: Copy
+      copy:
+        src: ../files/index.html
+        dest: /var/www/mysite/index.html
+        owner: www-data
+        group: www-data
+        mode: '0644'
+
+    - name: Conf
+      template:
+        src: ../templates/nginx.conf.j2
+        dest: /etc/nginx/sites-available/default
+      notify: restart nginx
+
+    - name: Start web
+      file:
+        src: /etc/nginx/sites-available/default
+        dest: /etc/nginx/sites-enabled/default
+        state: link
+
+    - name: Start Nginx
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+  handlers:
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted

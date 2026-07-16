@@ -1,0 +1,21 @@
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    root /var/www/mysite;
+    index index.html;
+
+    server_name _;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    location /hostname {
+        return 200 "{{ ansible_hostname }}\n";
+        add_header Content-Type text/plain;
+    }
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+}
