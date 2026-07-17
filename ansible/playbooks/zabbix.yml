@@ -1,0 +1,125 @@
+
+
+---
+- name: Установка Zabbix
+  hosts: zabbix
+  become: yes
+  vars:
+    zabbix_db_password: "Password@2026"
+
+  tasks:
+    - name: apt update
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    
+    - name: Install Apache, PHP, PostgreSQL
+      apt:
+        name:
+          - wget
+          - postgresql
+          - apache2
+          - php
+          - libapache2-mod-php
+          - php-pgsql
+          - php-mbstring
+          - php-gd
+          - php-xml
+          - php-bcmath
+        state: present
+
+    - name: download
+      get_url:
+        url: https://repo.zabbix.com/zabbix/6.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_6.0-4+ubuntu20.04_all.deb
+        dest: /tmp/zabbix-release.deb
+
+    - name: install repo Zabbix
+      apt:
+        deb: /tmp/zabbix-release.deb
+
+    - name: update cache
+      apt:
+        update_cache: yes
+
+    - name: Install Zabbix Server, Frontend и Agent
+      apt:
+        name:
+          - zabbix-server-pgsql
+          - zabbix-frontend-php
+          - zabbix-agent
+        state: present
+
+    - name: Start PostgreSQL
+      service:
+        name: postgresql
+        state: started
+        enabled: yes
+
+    - name: Create user
+      become_user: postgres
+      postgresql_user:
+        name: zabbix
+        password: "{{ zabbix_db_password }}"
+        encrypted: yes
+
+    - name: create db
+      become_user: postgres
+      postgresql_db:
+        name: zabbix
+        owner: zabbix
+    
+    - name: import
+      shell: zcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | psql -U zabbix zabbix
+      become_user: postgres
+      environment:
+        PGPASSWORD: "{{ zabbix_db_password }}"
+
+    - name: setting a connection db Zabbix Server
+      lineinfile:
+        path: /etc/zabbix/zabbix_server.conf
+        regexp: "^{{ item.option }}="
+        line: "{{ item.option }}={{ item.value }}"
+      loop:
+        - { option: 'DBHost', value: 'localhost' }
+        - { option: 'DBName', value: 'zabbix' }
+        - { option: 'DBUser', value: 'zabbix' }
+        - { option: 'DBPassword', value: "{{ zabbix_db_password }}" }
+      notify: restart zabbix-server
+  
+    - name: sitting time zone PHP
+      lineinfile:
+        path: /etc/php/8.1/apache2/php.ini
+        regexp: '^;?date.timezone ='
+        line: 'date.timezone = Europe/Moscow'
+        backup: yes
+
+    - name: start Apache
+      service:
+        name: apache2
+        state: restarted
+        enabled: yes
+
+    - name: start zabbix server
+      service:
+        name: zabbix-server
+        state: started
+        enabled: yes
+
+    - name: start Zabbix Agent
+      service:
+        name: zabbix-agent
+        state: started
+        enabled: yes
+  
+    - name: wait start zabbix server
+      wait_for:
+        port: 10051
+        delay: 10
+        timeout: 60
+
+  handlers:    
+    - name: restart zabbix-server
+      service:
+        name: zabbix-server
+        state: restarted
