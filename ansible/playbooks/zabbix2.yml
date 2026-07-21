@@ -1,0 +1,184 @@
+
+
+---
+- name: Установка Zabbix
+  hosts: zabbix
+  become: yes
+  vars:
+    zabbix_db_password: "Password@2026"
+
+  tasks:
+    - name: Delete old Repo
+      apt:
+        name: zabbix-release
+        state: absent
+      ignore_errors: yes
+      register: remove_repo
+
+    - name: Delete old in Source.list
+      file:
+        path: /etc/apt/sources.list.d/zabbix-release.list
+        state: absent
+      when: remove_repo is succeeded
+    
+    - name: apt update
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    
+    - name: Install Apache, PHP, PostgreSQL
+      apt:
+        name:
+          - wget
+          - postgresql
+          - apache2
+          - php
+          - libapache2-mod-php
+          - php-pgsql
+          - php-mbstring
+          - php-gd
+          - php-xml
+          - php-bcmath
+        state: present
+
+    - name: download
+      get_url:
+        url: "https://repo.zabbix.com/zabbix/6.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_6.0-4+ubuntu20.04_all.deb"
+        dest: /tmp/zabbix-release.deb
+
+    - name: install repo Zabbix
+      apt:
+        deb: /tmp/zabbix-release.deb
+      ignore_errors: yes
+      register: repo_install
+      failed_when:
+        - repo_install.rc != 0
+        - "'A later version is already installed' not in repo_install.msg"
+
+    - name: update cache
+      apt:
+        update_cache: yes
+
+    - name: Install Zabbix Server, Frontend и Agent
+      apt:
+        name:
+          - zabbix-server-pgsql
+          - zabbix-frontend-php
+          - zabbix-agent
+        state: present
+
+    - name: Start PostgreSQL
+      service:
+        name: postgresql
+        state: started
+        enabled: yes
+
+    - name: Creat user
+      shell: |
+        sudo -u postgres psql -c "CREATE USER zabbix WITH PASSWORD '{{ zabbix_db_password }}';"
+      register: create_user
+      failed_when: create_user.rc != 0 and "already exists" not in create_user.stderr
+      changed_when: "create_user.rc == 0"
+
+    - name: Create DB
+      shell: |
+        sudo -u postgres psql -c "CREATE DATABASE zabbix OWNER zabbix;"
+      register: create_db
+      failed_when: create_db.rc != 0 and "already exists" not in create_db.stderr
+      changed_when: "create_db.rc == 0"
+    
+
+    - name: Search 
+      stat:
+        path: /usr/share/zabbix-sql-scripts/postgresql/server.sql
+      register: sql_script
+
+    - name: Install scripts
+      apt:
+        name: zabbix-sql-scripts
+        state: present
+      when: not sql_script.stat.exists
+
+    - name: Search SQL sripts
+      stat:
+        path: /usr/share/zabbix-sql-scripts/postgresql/server.sql
+      register: sql_script_after
+      when: not sql_script.stat.exists
+
+    - name: Search scheme Zabbix
+      find:
+        paths:
+         - /usr/share/zabbix-sql-scripts
+         - /usr/share/doc/zabbix-sql-scripts
+         - /usr/share/zabbix
+        patterns: "*.sql"
+        file_type: file
+      register: schema_files
+
+    - name: Import scheme Zabbix
+      shell: |
+        PGPASSWORD={{ zabbix_db_password }} psql -U zabbix -h localhost -d zabbix -f {{ item.path }}
+      loop: "{{ schema_files.files }}"
+      when: schema_files.files | length > 0
+      register: import_schema
+      failed_when: import_schema.rc != 0
+      changed_when: import_schema.rc == 0
+      timeout: 300
+
+    - name: Create scheme
+      shell: |
+        PGPASSWORD={{ zabbix_db_password }} psql -U zabbix -h localhost -d zabbix -c "CREATE SCHEMA IF NOT EXISTS zabbix;"
+      when: schema_files.files | length == 0
+      register: create_schema
+      failed_when: create_schema.rc != 0
+      changed_when: create_schema.rc == 0
+
+    - name: setting a connection db Zabbix Server
+      lineinfile:
+        path: /etc/zabbix/zabbix_server.conf
+        regexp: "^{{ item.option }}="
+        line: "{{ item.option }}={{ item.value }}"
+      loop:
+        - { option: 'DBHost', value: 'localhost' }
+        - { option: 'DBName', value: 'zabbix' }
+        - { option: 'DBUser', value: 'zabbix' }
+        - { option: 'DBPassword', value: "{{ zabbix_db_password }}" }
+      notify: restart zabbix-server
+  
+    - name: sitting time zone PHP
+      lineinfile:
+        path: /etc/php/7.4/apache2/php.ini
+        regexp: '^;?date.timezone ='
+        line: 'date.timezone = Europe/Moscow'
+        backup: yes
+
+    - name: start Apache
+      service:
+        name: apache2
+        state: restarted
+        enabled: yes
+
+    - name: start zabbix server
+      service:
+        name: zabbix-server
+        state: started
+        enabled: yes
+
+    - name: start Zabbix Agent
+      service:
+        name: zabbix-agent
+        state: started
+        enabled: yes
+  
+    - name: wait start zabbix server
+      wait_for:
+        port: 10051
+        delay: 10
+        timeout: 60
+
+  handlers:    
+    - name: restart zabbix-server
+      service:
+        name: zabbix-server
+        state: restarted

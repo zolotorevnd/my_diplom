@@ -76,7 +76,7 @@ resource "yandex_compute_instance" "zabbix" {
 
   boot_disk {
     initialize_params {
-      image_id = "fd81n0sfjm6d5nq6l05g"
+      image_id = "fd8tjjdpp3a372hdo789"
       type     = "network-ssd"
       size     = "15"
     }
@@ -87,6 +87,7 @@ resource "yandex_compute_instance" "zabbix" {
     security_group_ids = [yandex_vpc_security_group.private-sg.id, yandex_vpc_security_group.zabbix-sg.id]
     ip_address         = "10.4.0.20"
     nat                = true
+    nat_ip_address     = yandex_vpc_address.zabbix_static_ip.external_ipv4_address[0].address
 
   }
 
@@ -154,7 +155,7 @@ resource "yandex_compute_instance" "kibana" {
     security_group_ids = [yandex_vpc_security_group.private-sg.id, yandex_vpc_security_group.kibana-sg.id]
     ip_address         = "10.4.0.100"
     nat                = true
-
+    nat_ip_address     = yandex_vpc_address.kibana_static_ip.external_ipv4_address[0].address
   }
 
   metadata = {

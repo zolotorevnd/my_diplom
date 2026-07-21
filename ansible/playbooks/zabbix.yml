@@ -1,25 +1,26 @@
-
-
 ---
-- name: Установка Zabbix
+- name: Установка Zabbix на Ubuntu 22.04
   hosts: zabbix
-  become: yes
+  become: true
   vars:
     zabbix_db_password: "Password@2026"
 
   tasks:
-    - name: apt update
+    # ==========================================
+    # 1. ПОДГОТОВКА СИСТЕМЫ
+    # ==========================================
+    - name: Обновление списка пакетов
       apt:
         update_cache: yes
         cache_valid_time: 3600
 
-    
-    - name: Install Apache, PHP, PostgreSQL
+    - name: Установка необходимых пакетов
       apt:
         name:
           - wget
-          - postgresql
           - apache2
+          - postgresql
+          - postgresql-contrib
           - php
           - libapache2-mod-php
           - php-pgsql
@@ -27,55 +28,73 @@
           - php-gd
           - php-xml
           - php-bcmath
+          - python3-psycopg2
         state: present
 
-    - name: download
+    # ==========================================
+    # 2. ДОБАВЛЕНИЕ РЕПОЗИТОРИЯ ZABBIX
+    # ==========================================
+    - name: Скачивание репозитория Zabbix
       get_url:
-        url: https://repo.zabbix.com/zabbix/6.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_6.0-4+ubuntu20.04_all.deb
+        url: "https://repo.zabbix.com/zabbix/6.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_6.0-4+ubuntu22.04_all.deb"
         dest: /tmp/zabbix-release.deb
 
-    - name: install repo Zabbix
+    - name: Установка репозитория Zabbix
       apt:
         deb: /tmp/zabbix-release.deb
 
-    - name: update cache
+    - name: Обновление списка пакетов
       apt:
         update_cache: yes
 
-    - name: Install Zabbix Server, Frontend и Agent
+    # ==========================================
+    # 3. УСТАНОВКА КОМПОНЕНТОВ ZABBIX
+    # ==========================================
+    - name: Установка Zabbix Server, Frontend, Agent и SQL-скриптов
       apt:
         name:
           - zabbix-server-pgsql
           - zabbix-frontend-php
+          - zabbix-sql-scripts
           - zabbix-agent
+          - zabbix-apache-conf
         state: present
 
-    - name: Start PostgreSQL
+    # ==========================================
+    # 4. НАСТРОЙКА POSTGRESQL
+    # ==========================================
+    - name: Запуск PostgreSQL
       service:
         name: postgresql
         state: started
         enabled: yes
 
-    - name: Create user
-      become_user: postgres
-      postgresql_user:
-        name: zabbix
-        password: "{{ zabbix_db_password }}"
-        encrypted: yes
+    - name: Создание пользователя БД
+      shell: |
+        sudo -u postgres psql -c "CREATE USER zabbix WITH PASSWORD '{{ zabbix_db_password }}';"
+      register: create_user
+      failed_when: create_user.rc != 0 and "already exists" not in create_user.stderr
+      changed_when: "create_user.rc == 0"
 
-    - name: create db
-      become_user: postgres
-      postgresql_db:
-        name: zabbix
-        owner: zabbix
-    
-    - name: import
-      shell: zcat /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | psql -U zabbix zabbix
-      become_user: postgres
-      environment:
-        PGPASSWORD: "{{ zabbix_db_password }}"
+    - name: Создание базы данных
+      shell: |
+        sudo -u postgres psql -c "CREATE DATABASE zabbix OWNER zabbix;"
+      register: create_db
+      failed_when: create_db.rc != 0 and "already exists" not in create_db.stderr
+      changed_when: "create_db.rc == 0"
 
-    - name: setting a connection db Zabbix Server
+    - name: Импорт схемы базы данных
+      shell: |
+        gunzip -c /usr/share/zabbix-sql-scripts/postgresql/server.sql.gz | PGPASSWORD={{ zabbix_db_password }} psql -U zabbix -h localhost -d zabbix
+      register: import_schema
+      failed_when: import_schema.rc != 0
+      changed_when: import_schema.rc == 0
+      timeout: 300
+
+    # ==========================================
+    # 5. НАСТРОЙКА КОНФИГУРАЦИИ
+    # ==========================================
+    - name: Настройка подключения к БД
       lineinfile:
         path: /etc/zabbix/zabbix_server.conf
         regexp: "^{{ item.option }}="
@@ -86,40 +105,48 @@
         - { option: 'DBUser', value: 'zabbix' }
         - { option: 'DBPassword', value: "{{ zabbix_db_password }}" }
       notify: restart zabbix-server
-  
-    - name: sitting time zone PHP
+
+    - name: Настройка часового пояса PHP
       lineinfile:
         path: /etc/php/8.1/apache2/php.ini
         regexp: '^;?date.timezone ='
         line: 'date.timezone = Europe/Moscow'
-        backup: yes
 
-    - name: start Apache
+    # ==========================================
+    # 6. НАСТРОЙКА APACHE
+    # ==========================================
+    - name: Включение конфигурации Zabbix в Apache
+      command: a2enconf zabbix
+      notify: restart apache2
+
+    # ==========================================
+    # 7. ЗАПУСК СЕРВИСОВ
+    # ==========================================
+    - name: Запуск Apache
       service:
         name: apache2
         state: restarted
         enabled: yes
 
-    - name: start zabbix server
+    - name: Запуск Zabbix Server
       service:
         name: zabbix-server
         state: started
         enabled: yes
 
-    - name: start Zabbix Agent
+    - name: Запуск Zabbix Agent
       service:
         name: zabbix-agent
         state: started
         enabled: yes
-  
-    - name: wait start zabbix server
-      wait_for:
-        port: 10051
-        delay: 10
-        timeout: 60
 
-  handlers:    
+  handlers:
     - name: restart zabbix-server
       service:
         name: zabbix-server
+        state: restarted
+
+    - name: restart apache2
+      service:
+        name: apache2
         state: restarted

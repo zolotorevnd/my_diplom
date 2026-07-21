@@ -265,7 +265,13 @@ resource "yandex_vpc_security_group" "zabbix-sg" {
   ingress {
     protocol       = "TCP"
     v4_cidr_blocks = ["0.0.0.0/0"]
-    port           = 8080
+    port           = 80
+  }
+
+  ingress {
+    protocol       = "TCP"
+    v4_cidr_blocks = ["0.0.0.0/0"]
+    port           = 10051
   }
 
   ingress {
@@ -308,5 +314,29 @@ resource "yandex_vpc_security_group" "elasticsearch-sg" {
   egress {
     protocol       = "ANY"
     v4_cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# Static IP Bastion
+resource "yandex_vpc_address" "bastion_static_ip" {
+  name = "bastion-static-ip"
+  external_ipv4_address {
+    zone_id = "ru-central1-a"
+  }
+}
+
+# Static IP Zabbix
+resource "yandex_vpc_address" "zabbix_static_ip" {
+  name = "zabbix-static-ip"
+  external_ipv4_address {
+    zone_id = "ru-central1-a"
+  }
+}
+
+# Static IP Kibana
+resource "yandex_vpc_address" "kibana_static_ip" {
+  name = "kibana-static-ip"
+  external_ipv4_address {
+    zone_id = "ru-central1-a"
   }
 }
