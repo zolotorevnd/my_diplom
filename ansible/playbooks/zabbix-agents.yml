@@ -1,0 +1,51 @@
+---
+- name: Установка Zabbix Agent на ВМ
+  hosts: all:!zabbix
+  become: true
+  vars:
+    zabbix_server_ip: "10.4.0.20"
+
+  tasks:
+    - name: Установка Zabbix Agent (Ubuntu)
+      apt:
+        name: zabbix-agent
+        state: present
+        update_cache: yes
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Установка Zabbix Agent (Debian)
+      apt:
+        name: zabbix-agent
+        state: present
+        update_cache: no
+      when: ansible_distribution == "Debian"
+
+    - name: Настройка Zabbix Agent (Server)
+      lineinfile:
+        path: /etc/zabbix/zabbix_agentd.conf
+        regexp: '^Server='
+        line: "Server={{ zabbix_server_ip }}"
+
+    - name: Настройка Zabbix Agent (ServerActive)
+      lineinfile:
+        path: /etc/zabbix/zabbix_agentd.conf
+        regexp: '^ServerActive='
+        line: "ServerActive={{ zabbix_server_ip }}"
+
+    - name: Настройка Zabbix Agent (Hostname)
+      lineinfile:
+        path: /etc/zabbix/zabbix_agentd.conf
+        regexp: '^Hostname='
+        line: "Hostname={{ ansible_fqdn }}"
+
+    - name: Запуск Zabbix Agent
+      service:
+        name: zabbix-agent
+        state: started
+        enabled: yes
+
+  handlers:
+    - name: restart zabbix-agent
+      service:
+        name: zabbix-agent
+        state: restarted
