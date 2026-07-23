@@ -225,6 +225,12 @@ resource "yandex_vpc_security_group" "bastion-sg" {
   }
 
   ingress {
+    protocol       = "TCP"
+    v4_cidr_blocks = ["10.4.0.20/32"]   # Только Zabbix Server
+    port           = 10051
+  }
+
+  ingress {
     protocol       = "ICMP"
     v4_cidr_blocks = ["0.0.0.0/0"]
   }
