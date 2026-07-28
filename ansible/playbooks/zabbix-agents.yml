@@ -32,7 +32,7 @@
         regexp: '^ServerActive='
         line: "ServerActive={{ zabbix_server_ip }}"
 
-    - name: Настройка Zabbix Agent (Hostname)
+    - name: Настройка Zabbix Agent
       lineinfile:
         path: /etc/zabbix/zabbix_agentd.conf
         regexp: '^Hostname='

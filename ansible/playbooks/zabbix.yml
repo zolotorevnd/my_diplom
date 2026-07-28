@@ -1,5 +1,5 @@
 ---
-- name: Установка Zabbix на Ubuntu 22.04
+- name: Установка Zabbix на Ubuntu
   hosts: zabbix
   become: true
   vars:

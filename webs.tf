@@ -3,6 +3,8 @@ resource "yandex_compute_instance" "web-1" {
   hostname = "web-1"
   zone     = "ru-central1-a"
 
+  allow_stopping_for_update = true
+
   resources {
     cores  = 2
     memory = 2
@@ -36,6 +38,8 @@ resource "yandex_compute_instance" "web-2" {
   hostname = "web-2"
   zone     = "ru-central1-b"
 
+  allow_stopping_for_update = true
+
   resources {
     cores  = 2
     memory = 2
@@ -68,6 +72,8 @@ resource "yandex_compute_instance" "zabbix" {
   name     = "zabbix"
   hostname = "zabbix"
   zone     = "ru-central1-a"
+
+  allow_stopping_for_update = true
 
   resources {
     cores  = 2
@@ -104,6 +110,8 @@ resource "yandex_compute_instance" "elasticsearch" {
   hostname = "elasticsearch"
   zone     = "ru-central1-a"
 
+  allow_stopping_for_update = true
+
   resources {
     cores  = 4
     memory = 8
@@ -136,6 +144,8 @@ resource "yandex_compute_instance" "kibana" {
   name     = "kibana"
   hostname = "kibana"
   zone     = "ru-central1-a"
+
+  allow_stopping_for_update = true
 
   resources {
     cores  = 2
