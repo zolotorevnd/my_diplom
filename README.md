@@ -57,7 +57,7 @@ ELK доступен по сслылке: http://158.160.58.25:5601
 
 <img src = "files/docker_kibana.png" width = 100%>
 
-<img src = "files/docker_kibana_web.png" width = 100%>
+<img src = "files/kibana_web.png" width = 100%>
 
 Filebeat установил с помощью Ansible
 
