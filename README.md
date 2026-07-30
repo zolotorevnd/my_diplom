@@ -52,7 +52,7 @@
 
 <img src = "files/zabbix2.png" width = 100%>
 
-На Web-1 и Web-2 поставил Elasticsearch и Kibana с помощью docker. Не получилось установить с помощью Ansible, 2 дня бился с Elastic, но так и не получилось его поднять...
+Установка Elasticsearch и Kibana с помощью Ansible
 
 <img src = "files/elasticsearch_ansible.png" width = 100%>
 
