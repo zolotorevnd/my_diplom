@@ -54,11 +54,9 @@
 
 На Web-1 и Web-2 поставил Elasticsearch и Kibana с помощью docker. Не получилось установить с помощью Ansible, 2 дня бился с Elastic, но так и не получилось его поднять...
 
-<img src = "files/docker_elastic.png" width = 100%>
+<img src = "files/elasticsearch_ansible.png" width = 100%>
 
-<img src = "files/docker_kibana.png" width = 100%>
-
-<img src = "files/kibana_web.png" width = 100%>
+<img src = "files/kibana_ansible.png" width = 100%>
 
 Filebeat установил с помощью Ansible
 
