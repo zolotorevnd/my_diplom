@@ -1,0 +1,45 @@
+---
+- name: Установка Elasticsearch
+  hosts: elasticsearch
+  become: yes
+  gather_facts: true
+
+  tasks:
+    - name: Обновление кеша apt
+      apt:
+        update_cache: yes
+      ignore_errors: yes
+
+    - name: Установка Docker
+      apt:
+        name: docker.io
+        state: present
+        update_cache: no
+
+    - name: Запуск Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Проверка существования контейнера elasticsearch
+      shell: docker ps -a -q --filter "name=elasticsearch"
+      register: container_check
+      changed_when: false
+
+    - name: Удаление старого контейнера elasticsearch
+      shell: docker rm -f elasticsearch
+      when: container_check.stdout != ""
+      changed_when: true
+
+    - name: Запуск контейнера
+      shell: |
+        docker run -d \
+          --name elasticsearch \
+          --restart always \
+          -p 9200:9200 \
+          -p 9300:9300 \
+          -e "discovery.type=single-node" \
+          -e "ES_JAVA_OPTS=-Xms2g -Xmx2g" \
+          docker.elastic.co/elasticsearch/elasticsearch:7.17.27
+      changed_when: true

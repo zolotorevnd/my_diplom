@@ -1,0 +1,40 @@
+---
+- name: Установка Kibana
+  hosts: kibana
+  become: yes
+  gather_facts: true
+
+  tasks:
+    - name: Установка Docker
+      apt:
+        name:
+          - docker.io
+          - docker-compose
+        state: present
+        update_cache: no
+
+    - name: Запуск Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Проверка имеющегося контейнера kibana
+      shell: docker ps -a -q --filter "name=kibana"
+      register: container_check
+      changed_when: false
+
+    - name: Удаление старого контейнера kibana
+      shell: docker rm -f kibana
+      when: container_check.stdout != ""
+      changed_when: true
+
+    - name: Запуск контейнера
+      shell: |
+        docker run -d \
+          --name kibana \
+          --restart always \
+          -p 5601:5601 \
+          -e "ELASTICSEARCH_HOSTS=http://10.3.0.100:9200" \
+          docker.elastic.co/kibana/kibana:7.17.27
+      changed_when: true
